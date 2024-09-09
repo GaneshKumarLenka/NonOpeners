@@ -179,12 +179,14 @@ def hitTheAPI(logger,request):
         channel =request['channel']
         if channel == 'GREEN':
             record_listid = request['listid']
+            listid_column = "listid"
         elif channel == "ORANGE" or channel == "INFS":
             record_listid = request['plistid']
+            listid_column = "plistid"
         with createMysqlConnectionSession(logger, MDB_MYSQL_CONFIGS) as mdb_session:
             logger.info("Fetching Transactional table info from the Source Table...")
-            logger.info(f"Executing query ::: {GET_TRANSACTIONAL_TABLE_INFO_QUERY.format(listid = record_listid , channel = request['channel'])}")
-            result = mdb_session.execute(text(GET_TRANSACTIONAL_TABLE_INFO_QUERY.format(listid = record_listid , channel = request['channel'])))
+            logger.info(f"Executing query ::: {GET_TRANSACTIONAL_TABLE_INFO_QUERY.format(listidcolumn = listid_column ,listid = record_listid , channel = request['channel'])}")
+            result = mdb_session.execute(text(GET_TRANSACTIONAL_TABLE_INFO_QUERY.format(listidcolumn = listid_column ,listid = record_listid , channel = request['channel'])))
             transactionalTable = result.fetchone()[0]
             logger.info(f"Now need to fetch the api params from Transactional table {transactionalTable}")
 

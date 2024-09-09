@@ -101,7 +101,7 @@ CHECK_GREEN_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY = "SELECT COUNT(1) FROM ({query})
 CHECK_INFS_FEED_SUPP_EMAIL_LEVEL_QUERY = "SELECT COUNT(1) FROM {table_name} where email = {email}"
 CHECK_INFS_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY = "SELECT COUNT(1) FROM ({query}) G where email  ={email}  and listid = {listid}"
 
-GET_TRANSACTIONAL_TABLE_INFO_QUERY = "SELECT DISTINCT transactionalTable FROM PFM_UNIVERSAL_DB_QA.FEED_NONOPENER_SHARING_SOURCE WHERE LISITID = {listid}  and channelName = {channel} limit 1"
+GET_TRANSACTIONAL_TABLE_INFO_QUERY = "SELECT DISTINCT transactionalTable FROM PFM_UNIVERSAL_DB_QA.FEED_NONOPENER_SHARING_SOURCE WHERE {listidcolumn} = {listid}  and channelName = {channel} limit 1"
 FETCH_DATA_FROM_TRANSACTIONAL_QUERY = "SELECT email,fname, lname, zipcode, city ,address, state , url, listid, ipaddress,signupdate,vertical, dob , subid  from {table_name}  where "
 
 # Feed Level Suppressions configs
