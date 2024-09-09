@@ -169,3 +169,4 @@ def updatePostTransactionStatus(logger, table_name, request, status):
     except Exception as e:
         logger.error(f"Exception Occurred while updating status for table {table_name} with status {status} for record  {request}")
         logger.error(f"Please look into this error ::: {str(e) + traceback.format_exc()}")
+

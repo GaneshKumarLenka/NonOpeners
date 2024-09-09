@@ -86,6 +86,7 @@ def exit_program(code=-1, pid_file=PID_FILE):
     sys.exit(code)
 
 
+
 def delete_old_files(directory_path, main_logger, days_threshold=30):
     current_time = datetime.now()
     threshold_time = current_time - timedelta(days=days_threshold)

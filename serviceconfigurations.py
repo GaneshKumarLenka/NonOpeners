@@ -102,6 +102,7 @@ CHECK_INFS_FEED_SUPP_EMAIL_LEVEL_QUERY = "SELECT COUNT(1) FROM {table_name} wher
 CHECK_INFS_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY = "SELECT COUNT(1) FROM ({query}) G where email  ={email}  and listid = {listid}"
 
 
+
 # Feed Level Suppressions configs
 GREEN_FEED_LEVEL_SUPP_TABLES = {
     'email': (
