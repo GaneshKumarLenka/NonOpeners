@@ -119,18 +119,37 @@ def checkInInfsFeedSupp(request, logger):
             result = result.fetchone()[0]
             if result >= 1:
                 return True
+
             logger.info("Executing query ::: SELECT COUNT(1) FROM (select c.email,d.account_name from CUST_REPORT_DB.APT_UNSUB_DETAILS_OTEAM c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid) G where G.account_name={account_name} and G.EMAIL = {email}".format(email=request['email'], account_name=request['accountname']))
             result = mdb_session.execute(text("SELECT COUNT(1) FROM (select c.email,d.account_name from CUST_REPORT_DB.APT_UNSUB_DETAILS_OTEAM c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid) G where G.account_name={account_name} and G.EMAIL = {email}".format(email=request['email'], account_name=request['accountname'])))
             result = result.fetchone()[0]
             if result >= 1:
                 return True
+
             logger.info("Executing query ::: select count(1) from  (select c.email,d.account_name from (select email,listid from  CUST_REPORT_DB.APT_EMAIL_REPLIES_TRANSACTIONAL a join INFS_DB.INFS_ADHOC_DOMAINS b on lower(trim(a.domain))=lower(trim(b.domain)) where a.id > 17218326 ) c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid ) G where G.account_name={account_name} and G.EMAIL = {email}".format(email=request['email'], account_name=request['accountname']))
             result = mdb_session.execute(text("select count(1) from  (select c.email,d.account_name from (select email,listid from  CUST_REPORT_DB.APT_EMAIL_REPLIES_TRANSACTIONAL a join INFS_DB.INFS_ADHOC_DOMAINS b on lower(trim(a.domain))=lower(trim(b.domain)) where a.id > 17218326 ) c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid ) G where G.account_name={account_name} and G.EMAIL = {email}".format(email=request['email'], account_name=request['accountname'])))
             result = result.fetchone()[0]
             if result >= 1:
                 return True
+
             logger.info("Executing query ::: SELECT COUNT(1) FROM (select c.email,d.account_name from INFS_DB.INFS_UNSUBS_ACCOUNT_WISE c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.account_name=d.account_name ) G where G.account_name= {account_name} and G.EMAIL= {email}".format(email=request['email'], account_name=request['accountname']))
             result = mdb_session.execute(text("SELECT COUNT(1) FROM (select c.email,d.account_name from INFS_DB.INFS_UNSUBS_ACCOUNT_WISE c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.account_name=d.account_name ) G where G.account_name= {account_name} and G.EMAIL= {email}".format(email=request['email'], account_name=request['accountname'])))
+            result = result.fetchone()[0]
+            if result >= 1:
+                return True
+
+            logger.info("Executing query ::: SELECT COUNT(1) FROM (select c.email,d.account_name from INFS_DB.APT_INFS_ACCOUNT_LEVEL_STATIC_SUPPRESSION_DATA c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid) G where G.account_name= {account_name} and G.EMAIL ={email}".format(email=request['email'], account_name=request['accountname']))
+            result = mdb_session.execute(text("SELECT COUNT(1) FROM (select c.email,d.account_name from INFS_DB.APT_INFS_ACCOUNT_LEVEL_STATIC_SUPPRESSION_DATA c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid) G where G.account_name= {account_name} and G.EMAIL ={email}".format(email=request['email'], account_name=request['accountname'])))
+            result = result.fetchone()[0]
+            if result >= 1:
+                return True
+
+            logger.info(
+                "Executing query ::: SELECT COUNT(1) FROM (select c.email,d.account_name from INFS_DB.APT_INFS_ACCOUNT_LEVEL_STATIC_SUPPRESSION_DATA c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid) G where G.account_name= {account_name} and G.EMAIL ={email}".format(
+                    email=request['email'], account_name=request['accountname']))
+            result = mdb_session.execute(text(
+                "SELECT COUNT(1) FROM (select c.email,d.account_name from INFS_DB.APT_INFS_ACCOUNT_LEVEL_STATIC_SUPPRESSION_DATA c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid) G where G.account_name= {account_name} and G.EMAIL ={email}".format(
+                    email=request['email'], account_name=request['accountname'])))
             result = result.fetchone()[0]
             if result >= 1:
                 return True
