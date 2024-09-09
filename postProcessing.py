@@ -56,9 +56,19 @@ class Postprocessing:
         thread_logger.info(f"[Thread-{thread_number}] Checking It Was Responder or Not")
         if isResponderOrNot(request,thread_logger):
             thread_logger.info(f"Found this record {request}in Responder Table. Updating status to 'R'...")
-            updatePostTransactionStatus(thread_logger,table_name,'R')
-        isDeliveredOrNOt(request,thread_logger)
-        isFeedlevelSuppressedOrNot(request,thread_logger)
+            updatePostTransactionStatus(thread_logger,table_name,request,'R')
+            self.request_queue.task_done()
+            return
+        if not isDeliveredOrNOt(request,thread_logger):
+            thread_logger.info(f"Unable to find this record {request} in Delivered Table. Updating status to ''...")
+            updatePostTransactionStatus(thread_logger, table_name, request, '')
+            self.request_queue.task_done()
+            return
+        if isFeedlevelSuppressedOrNot(request,thread_logger):
+            thread_logger.info(f"Found this record {request} in Feed Level Suppression Tables. Updating status to 'Z'...")
+            updatePostTransactionStatus(thread_logger, table_name, request, 'Z')
+            self.request_queue.task_done()
+            return
 
 
 

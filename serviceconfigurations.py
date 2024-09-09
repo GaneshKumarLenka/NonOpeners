@@ -4,7 +4,7 @@
 import os
 import random
 import sys
-from datetime import datetime,time as dt_time
+from datetime import datetime, time as dt_time
 from pathlib import Path
 from threading import Thread
 import threading
@@ -47,14 +47,12 @@ PID_FILE = ""
 
 THREAD_COUNT = 5  # thread count
 
-
-
-#mail configs
+# mail configs
 FROM_EMAIL = ""
 RECEPIENT_EMAILS = []
 MAIL_FILE = ''
 
-#skype configs
+# skype configs
 skype_configurations = {
     'url': 'http://zds-prod-ext-greenapp1-vip.bo3.e-dialog.com/sendSkypeAlerts/index.php?key=',
     'file_path': SCRIPT_PATH,
@@ -64,8 +62,6 @@ skype_configurations = {
     'server': 'zdl3-mn09.bo3.e-dialog.com',
     'log_path': LOG_PATH
 }
-
-
 
 # Mysql Configurations
 MYSQL_CONNECTION_RETRY_LIMIT = 5
@@ -85,9 +81,7 @@ JBDB4_MYSQL_CONFIGS = {
     'database': 'RT_CUSTOMIZATION_DB',
 }
 
-
-
-#TABLE NAME CONFIGS
+# TABLE NAME CONFIGS
 POST_PROCESSING_TABLES = [
     "green",
     "orange"
@@ -99,4 +93,42 @@ DELIVERED_TABLE = 'PMTA_RAW_DELIVERED_LOG'
 # MYSQL QUERIES
 FETCH_WAITING_RECORDS_QUERY = "SELECT * FROM {table_name} WHERE  NO_STATUS = 'W' AND SEND_AT <= NOW()"
 CHECK_FOR_RESPONDER_QUERY = "SELECT count(1) FROM  {table_name} WHERE SUBID = {subid} and PROFILEID = {profileid} and LASTOPENDATE >= NOW() - INTERVAL 1 DAY"
-CHECK_FOR_DELIVERED_QUERY = "SELECT count(1) FROM RT_CUSTOMIZATION_DB.PMTA_RAW_DELIVERED_LOG where SUBID ={subid} AND LISTID = {listid} and TIMELOGGED >=NOW() - INTERVAL 1 DAY"
+CHECK_FOR_DELIVERED_QUERY = "SELECT count(1) FROM RT_CUSTOMIZATION_DB.PMTA_RAW_DELIVERED_LOG where SUBID ={subid} AND TOADDRESS = {email} and TIMELOGGED >=NOW() - INTERVAL 1 DAY"
+UPDATE_POST_PROCESSING_TABLE_STATUS_QUERY = "UPDATE {table_name} set status = {status} where SUBID = {subid} and email = {profileid}"
+CHECK_GREEN_FEED_SUPP_EMAIL_LEVEL_QUERY = "SELECT COUNT(1) FROM {table_name} where email = {email}"
+CHECK_GREEN_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY = "SELECT COUNT(1) FROM ({query}) G where email  ={email}  and listid = {listid}"
+
+CHECK_INFS_FEED_SUPP_EMAIL_LEVEL_QUERY = "SELECT COUNT(1) FROM {table_name} where email = {email}"
+CHECK_INFS_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY = "SELECT COUNT(1) FROM ({query}) G where email  ={email}  and listid = {listid}"
+
+
+# Feed Level Suppressions configs
+GREEN_FEED_LEVEL_SUPP_TABLES = {
+    'email': (
+        "PFM_UNIVERSAL_DB.APT_CUSTDOD_GLOBAL_COMPLAINER_EMAILS",
+        "CUST_REPORT_DB.APT_ABUSE_DETAILS",
+        "PFM_UNIVERSAL_DB.PFM_FLUENT_REGISTRATIONS_CANADA",
+        "PFM_UNIVERSAL_DB.APT_CUSTOM_GLOBAL_HARDBOUNCES_DATA",
+        "PFM_UNIVERSAL_DB.APT_CUSTOM_GLOBAL_SOFTINACTIVE"
+    ),
+    'email_listid': (
+        "select email,listid from CUST_REPORT_DB.APT_UNSUB_DETAILS where listid in (select distinct listid from  PFM_UNIVERSAL_DB.PFM_FLUENT_REGISTRATIONS_LOOKUP_DONOTDROP_RT where RULE in (2,3) ) "
+    )
+}
+
+INFS_FEED_LEVEL_SUPP_TABLES = {
+    'email': (
+        "INFS_DB.APT_ADHOC_GLOBAL_SUPP_20210204",
+        "CUST_REPORT_DB.APT_ABUSE_DETAILS",
+        "PFM_UNIVERSAL_DB.APT_CUSTOM_GLOBAL_HARDBOUNCES_DATA",
+        "INFS_DB.INFS_HARDS",
+        "PFM_UNIVERSAL_DB.APT_CUSTOM_GLOBAL_SOFTINACTIVE",
+        "INFS_DB.INFS_SOFTS"
+    ),
+    'email_listid': (
+        "select email, listid from CUST_REPORT_DB.APT_UNSUB_DETAILS_OTEAM",
+        "select email,listid from CUST_REPORT_DB.APT_EMAIL_REPLIES_TRANSACTIONAL a join INFS_DB.INFS_ADHOC_DOMAINS b on lower(trim(a.domain))=lower(trim(b.domain)) where a.id > 17218326",
+        "select email,listid from INFS_DB.INFS_UNSUBS_ACCOUNT_WISE a join (select distinct listid, acc_name as account_name from INFS_DB.INFS_ADHOC_DOMAINS) b on a.account_name=b.account_name",
+        "select email, listid from INFS_DB.APT_INFS_ACCOUNT_LEVEL_STATIC_SUPPRESSION_DATA"
+    )
+}
