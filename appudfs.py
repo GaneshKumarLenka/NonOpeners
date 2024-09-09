@@ -144,12 +144,14 @@ def checkInInfsFeedSupp(request, logger):
             if result >= 1:
                 return True
 
-            logger.info(
-                "Executing query ::: SELECT COUNT(1) FROM (select c.email,d.account_name from INFS_DB.APT_INFS_ACCOUNT_LEVEL_STATIC_SUPPRESSION_DATA c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid) G where G.account_name= {account_name} and G.EMAIL ={email}".format(
-                    email=request['email'], account_name=request['accountname']))
-            result = mdb_session.execute(text(
-                "SELECT COUNT(1) FROM (select c.email,d.account_name from INFS_DB.APT_INFS_ACCOUNT_LEVEL_STATIC_SUPPRESSION_DATA c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid) G where G.account_name= {account_name} and G.EMAIL ={email}".format(
-                    email=request['email'], account_name=request['accountname'])))
+            logger.info("Executing query ::: SELECT COUNT(1) FROM INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION G where G.email= {email} and {listid} in (select listid from INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION_LISTIDS)".format(email=request['email'], listid=request['listid']))
+            result = mdb_session.execute(text("SELECT COUNT(1) FROM INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION G where G.email= {email} and {listid} in (select listid from INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION_LISTIDS)".format(email=request['email'], listid=request['listid'])))
+            result = result.fetchone()[0]
+            if result >= 1:
+                return True
+
+            logger.info("Executing query ::: SELECT COUNT(1) FROM INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION G where G.email= {email} and {account_name} in (select account_name from INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION_LISTIDS c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid)".format(email=request['email'], account_name=request['accountname']))
+            result = mdb_session.execute(text("SELECT COUNT(1) FROM INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION G where G.email= {email} and {account_name} in (select account_name from INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION_LISTIDS c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid)".format(email=request['email'], account_name=request['accountname'])))
             result = result.fetchone()[0]
             if result >= 1:
                 return True
