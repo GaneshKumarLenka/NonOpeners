@@ -69,6 +69,16 @@ class Postprocessing:
             updatePostTransactionStatus(thread_logger, table_name, request, 'Z')
             self.request_queue.task_done()
             return
+        target_id = quota_check(request, thread_logger)
+        if target_id is None:
+            thread_logger.info(f"Quota limit is reached. Updating status to 'X'...")
+            updatePostTransactionStatus(thread_logger, table_name, request, 'X')
+            self.request_queue.task_done()
+            return
+        else:
+            request['targetListId'] = updateTargetListId(thread_logger, table_name, request, target_id)
+
+
 
 
 

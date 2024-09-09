@@ -1,6 +1,12 @@
 # import statements
-
-
+FETCH_TARGET_QUOTA_DETAILS = '''SELECT t.targetId, t.quota, t.quotaType, COALESCE(q.count, 0) AS currentCount
+        FROM RT_NONOPENER_SHARING_TARGET t
+        LEFT JOIN RT_NONOPENER_SHARING_QUOTA_CHECK q
+            ON t.targetId = q.targetId
+            AND ((t.quotaType = 'H' AND q.hour = HOUR(NOW()) AND q.deployedDate = CURDATE())
+                 OR (t.quotaType = 'D' AND q.deployedDate = CURDATE()))
+        WHERE t.sourceId = {sourceid}'''
+UPDATE_POST_PROCESSING_TABLE_TARGET_LISTID_QUERY = "UPDATE {table_name} set targetListId = {targetListId} where id = {id}"
 import os
 import random
 import sys
@@ -89,6 +95,8 @@ POST_PROCESSING_TABLES = [
 GREEN_OPEN_TABLE = 'CUST_REPORT_DB.APT_OPEN_DETAILS'
 INFS_OPEN_TABLE = 'CUST_REPORT_DB.APT_OPEN_DETAILS_OTEAM'
 DELIVERED_TABLE = 'PMTA_RAW_DELIVERED_LOG'
+QUOTA_CHECK_TABLE = 'RT_NONOPENER_SHARING_QUOTA_CHECK'
+TARGET_DETAILS_TABLE = 'FEED_NONOPENER_SHARING_TARGET'
 
 # MYSQL QUERIES
 FETCH_WAITING_RECORDS_QUERY = "SELECT * FROM {table_name} WHERE  NO_STATUS = 'W' AND SEND_AT <= NOW()"
@@ -101,7 +109,9 @@ CHECK_GREEN_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY = "SELECT COUNT(1) FROM ({query})
 CHECK_INFS_FEED_SUPP_EMAIL_LEVEL_QUERY = "SELECT COUNT(1) FROM {table_name} where email = {email}"
 CHECK_INFS_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY = "SELECT COUNT(1) FROM ({query}) G where email  ={email}  and listid = {listid}"
 
-GET_TRANSACTIONAL_TABLE_INFO_QUERY = "SELECT DISTINCT transactionalTable FROM PFM_UNIVERSAL_DB_QA.FEED_NONOPENER_SHARING_SOURCE WHERE {listidcolumn} = {listid}  and channelName = {channel} limit 1"
+GET_TARGET_LISTID_INFO_QUERY = "SELECT {listidcolumn} FROM FEED_NONOPENER_SHARING_TARGET WHERE targetId = {targetid}  and channelName = {channel} limit 1"
+
+GET_TRANSACTIONAL_TABLE_INFO_QUERY = "SELECT DISTINCT transactionalTable FROM FEED_NONOPENER_SHARING_SOURCE WHERE {listidcolumn} = {listid}  and channelName = {channel} limit 1"
 FETCH_DATA_FROM_TRANSACTIONAL_QUERY = "SELECT email,fname, lname, zipcode, city ,address, state , url, listid, ipaddress,signupdate,vertical, dob , subid  from {table_name}  where "
 
 # Feed Level Suppressions configs

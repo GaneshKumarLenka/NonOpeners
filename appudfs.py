@@ -172,6 +172,91 @@ def updatePostTransactionStatus(logger, table_name, request, status):
         logger.error(f"Exception Occurred while updating status for table {table_name} with status {status} for record  {request}")
         logger.error(f"Please look into this error ::: {str(e) + traceback.format_exc()}")
 
+def updateTargetListId(logger, table_name, request, target_id):
+    try:
+        with createMysqlConnectionSession(logger, MDB_MYSQL_CONFIGS) as mdb_session:
+            channel = request['channel']
+            if channel == 'GREEN':
+                record_listid = request['listid']
+                listid_column = "listid"
+            elif channel == "ORANGE" or channel == "INFS":
+                record_listid = request['plistid']
+                listid_column = "plistid"
+            logger.info("Fetching target_listid info from the Target Table...")
+            logger.info(f"Executing query ::: {GET_TARGET_LISTID_INFO_QUERY.format(listidcolumn = listid_column ,targetid = target_id , channel = request['channel'])}")
+            result = mdb_session.execute(text(GET_TARGET_LISTID_INFO_QUERY.format(listidcolumn = listid_column ,targetid = target_id , channel = request['channel'])))
+            target_listid = result.fetchone()[0]
+            logger.info(f"Fetched target_listid : {target_listid} for {listid_column} : {record_listid} ")
+            request['targetListId'] = target_listid
+            logger.info(f" Executing query ::: {UPDATE_POST_PROCESSING_TABLE_TARGET_LISTID_QUERY.format(table_name=table_name, targetListId=request['targetListId'], id=request['id'])}")
+            mdb_session.execute(text(UPDATE_POST_PROCESSING_TABLE_STATUS_QUERY.format(table_name=table_name, targetListId=request['targetListId'], id=request['id'])))
+            logger.info(f"{table_name} targetListId updated to '{request['targetListId']}' for the record {request}")
+            return target_listid
+    except Exception as e:
+        logger.error(f"Exception Occurred while updating targetListId for table {table_name} with targetListId '{request['targetListId']}' for record  {request}")
+        logger.error(f"Please look into this error ::: {str(e) + traceback.format_exc()}")
+
+# Function to get quota usage for each target for a given source
+def get_quota_usage_for_targets(source_id):
+    with createMysqlConnectionSession(logger, MDB_MYSQL_CONFIGS) as mdb_session:
+        targets = mdb_session.execute(text(FETCH_TARGET_QUOTA_DETAILS.format(sourceid=source_id)))
+        targets_as_dicts = [dict(zip(waiting_records.keys(), row)) for row in targets.fetchall()]
+        logger.info(f"Fetched targets for sourceid - {source_id} ")
+        logger.info(f"Target details :: {targets_as_dicts}")
+        return targets_as_dicts
+
+
+# Function to update the quota check table after distributing a record
+def update_quota_check_table(target_id, quota_type):
+    with createMysqlConnectionSession(logger, MDB_MYSQL_CONFIGS) as mdb_session:
+        if quota_type == 'H':
+            query = f'''
+            INSERT INTO {QUOTA_CHECK_TABLE} (targetId, count, hour, deployedDate)
+            VALUES (%s, 1, HOUR(NOW()), CURDATE())
+            ON DUPLICATE KEY UPDATE count = count + 1;
+            '''
+        else:
+            query = f'''
+            INSERT INTO {QUOTA_CHECK_TABLE} (targetId, count, deployedDate)
+            VALUES (%s, 1, CURDATE())
+            ON DUPLICATE KEY UPDATE count = count + 1;
+            '''
+        mdb_session.execute(query, (target_id,))
+    logger.info(f"Successfully updated {QUOTA_CHECK_TABLE} table ")
+
+
+
+# Function to process a single record and assign it to a target based on quota availability
+def quota_check(request, logger):
+    with lock:
+        # Fetch current quota usage for each target
+        logger.info(f"quota_check process started")
+        targets = get_quota_usage_for_targets(request['sourceId'])
+
+        # Calculate available quotas for each target
+        available_targets = []
+        for target in targets:
+            target['availableQuota'] = max(0, target['quota'] - target['currentCount'])
+            if target['availableQuota'] > 0:
+                available_targets.append(target)
+
+        if not available_targets:
+            logger.info("No available target with quota for record.")
+            return None  # No available targets
+
+        # Sort the targets by available quota (to distribute fairly)
+        available_targets.sort(key=lambda t: t['availableQuota'], reverse=True)
+
+        # Assign the record to the first target with available quota
+        selected_target = available_targets[0]
+
+        # Update the quota check for the selected target
+        update_quota_check_table(selected_target['targetId'], selected_target['quotaType'])
+
+
+        logger.info(f"quota_check process ended")
+
+        return selected_target['targetId']
 
 
 def hitTheAPI(logger,request):
