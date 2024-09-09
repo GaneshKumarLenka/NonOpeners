@@ -172,3 +172,23 @@ def updatePostTransactionStatus(logger, table_name, request, status):
         logger.error(f"Exception Occurred while updating status for table {table_name} with status {status} for record  {request}")
         logger.error(f"Please look into this error ::: {str(e) + traceback.format_exc()}")
 
+
+
+def hitTheAPI(logger,request):
+    try:
+        channel =request['channel']
+        if channel == 'GREEN':
+            record_listid = request['listid']
+        elif channel == "ORANGE" or channel == "INFS":
+            record_listid = request['plistid']
+        with createMysqlConnectionSession(logger, MDB_MYSQL_CONFIGS) as mdb_session:
+            logger.info("Fetching Transactional table info from the Source Table...")
+            logger.info(f"Executing query ::: {GET_TRANSACTIONAL_TABLE_INFO_QUERY.format(listid = record_listid , channel = request['channel'])}")
+            result = mdb_session.execute(text(GET_TRANSACTIONAL_TABLE_INFO_QUERY.format(listid = record_listid , channel = request['channel'])))
+            transactionalTable = result.fetchone()[0]
+            logger.info(f"Now need to fetch the api params from Transactional table {transactionalTable}")
+
+
+    except Exception as e:
+        logger.error("Exception occurred at step Hitting the API...")
+        logger.error(f"Please look into this.... {str(e) + traceback.format_exc()}")

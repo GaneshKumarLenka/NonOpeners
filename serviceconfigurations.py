@@ -94,14 +94,15 @@ DELIVERED_TABLE = 'PMTA_RAW_DELIVERED_LOG'
 FETCH_WAITING_RECORDS_QUERY = "SELECT * FROM {table_name} WHERE  NO_STATUS = 'W' AND SEND_AT <= NOW()"
 CHECK_FOR_RESPONDER_QUERY = "SELECT count(1) FROM  {table_name} WHERE SUBID = {subid} and PROFILEID = {profileid} and LASTOPENDATE >= NOW() - INTERVAL 1 DAY"
 CHECK_FOR_DELIVERED_QUERY = "SELECT count(1) FROM RT_CUSTOMIZATION_DB.PMTA_RAW_DELIVERED_LOG where SUBID ={subid} AND TOADDRESS = {email} and TIMELOGGED >=NOW() - INTERVAL 1 DAY"
-UPDATE_POST_PROCESSING_TABLE_STATUS_QUERY = "UPDATE {table_name} set status = {status} where SUBID = {subid} and email = {profileid}"
+UPDATE_POST_PROCESSING_TABLE_STATUS_QUERY = "UPDATE {table_name} set NO_STATUS = {status} where SUBID = {subid} and email = {profileid}"
 CHECK_GREEN_FEED_SUPP_EMAIL_LEVEL_QUERY = "SELECT COUNT(1) FROM {table_name} where email = {email}"
 CHECK_GREEN_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY = "SELECT COUNT(1) FROM ({query}) G where email  ={email}  and listid = {listid}"
 
 CHECK_INFS_FEED_SUPP_EMAIL_LEVEL_QUERY = "SELECT COUNT(1) FROM {table_name} where email = {email}"
 CHECK_INFS_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY = "SELECT COUNT(1) FROM ({query}) G where email  ={email}  and listid = {listid}"
 
-
+GET_TRANSACTIONAL_TABLE_INFO_QUERY = "SELECT DISTINCT transactionalTable FROM PFM_UNIVERSAL_DB_QA.FEED_NONOPENER_SHARING_SOURCE WHERE LISITID = {listid}  and channelName = {channel} limit 1"
+FETCH_DATA_FROM_TRANSACTIONAL_QUERY = "SELECT email,fname, lname, zipcode, city ,address, state , url, listid, ipaddress,signupdate,vertical, dob , subid  from {table_name}  where "
 
 # Feed Level Suppressions configs
 GREEN_FEED_LEVEL_SUPP_TABLES = {

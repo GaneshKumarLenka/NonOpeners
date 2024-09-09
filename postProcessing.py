@@ -60,8 +60,8 @@ class Postprocessing:
             self.request_queue.task_done()
             return
         if not isDeliveredOrNOt(request,thread_logger):
-            thread_logger.info(f"Unable to find this record {request} in Delivered Table. Updating status to ''...")
-            updatePostTransactionStatus(thread_logger, table_name, request, '')
+            thread_logger.info(f"Unable to find this record {request} in Delivered Table. Updating status to 'U'...")
+            updatePostTransactionStatus(thread_logger, table_name, request, 'U')
             self.request_queue.task_done()
             return
         if isFeedlevelSuppressedOrNot(request,thread_logger):
