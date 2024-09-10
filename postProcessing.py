@@ -6,31 +6,17 @@ from appudfs import *
 class Postprocessing:
     def __init__(self):
         self.request_queue = Queue()
-    def initiate_table_threads(self):
+    def post_process(self):
         logger = create_logger("PostProcessing_main")
         logger.info(f"Service execution started ::: {time.ctime()}")
-        logger.info("Getting Tables Info..")
-        logger.info(f"We have these tables .. {POST_PROCESSING_TABLES}")
-        with ThreadPoolExecutor(max_workers=len(POST_PROCESSING_TABLES)) as executor:
-            futures = {}
-            try:
-                for table_name in POST_PROCESSING_TABLES:
-                    future = executor.submit(self.processTable, table_name)
-                    futures[future] = table_name
-                    logger.info(f"{table_name} submitted to Thread-{table_name} from Executor....")
-
-                completed_futures, _ = wait(futures.keys())
-                for completed_future in completed_futures:
-                    table_name = futures.pop(completed_future)
-                    logger.info(f"Thread- {table_name} has completed.")
-            except Exception as e:
-                logger.error(f"Error in ThreadPoolExecutor loop() :: {e}")
-                logger.error(traceback.format_exc())
-                time.sleep(5)
+        logger.info("Getting POST_PROCESSING_TABLE  Info..")
+        logger.info(f"We have thee table .. {POST_PROCESSING_TABLE}")
+        table_name = POST_PROCESSING_TABLE
+        self.processTable(table_name)
         logger.info(f"Service execution ended ::: {time.ctime()}")
     def processTable(self, table_name):
         try:
-            table_logger = create_logger(table_name)
+            table_logger = create_logger("WR_picker")
             table_logger.info(f"Processing table {table_name} started ... {time.ctime()}")
             with ThreadPoolExecutor(max_workers=THREAD_COUNT) as executor:
                 futures = {}
@@ -45,7 +31,7 @@ class Postprocessing:
                             while not self.request_queue.empty():
                                 if len(futures) < THREAD_COUNT:
                                     thread_number = len(futures) + 1
-                                    future = executor.submit(self.processRequests,table_name, thread_number)
+                                    future = executor.submit(self.processRequests,table_name, thread_number,table_logger)
                                     futures[future] = thread_number
                                     table_logger.info(f"Request submitted to Thread-{thread_number} from Executor....")
                                 else:
@@ -65,29 +51,29 @@ class Postprocessing:
             table_logger.error(f"Error in requestThreadProcess() :: {e}")
             table_logger.error(traceback.format_exc())
 
-    def processRequests(self, table_name, thread_number):
+    def processRequests(self, table_name, thread_number, picker_logger):
         try:
-            thread_logger = create_logger(f"Thread_{table_name}_{thread_number}")
             request = self.request_queue.get()
-            thread_logger.info(f"[Thread-{thread_number}] Request fetched from Queue ::: {request}")
+            picker_logger.info(f"[Thread-{thread_number}] Request fetched from Queue ::: {request}")
             if request is None:
-                thread_logger.info(f"[Thread-{thread_number}] No request found... Closing this Thread...")
+                picker_logger.info(f"[Thread-{thread_number}] No request found... Closing this Thread...")
                 self.request_queue.task_done()
                 return
+            thread_logger = create_logger(f"Thread_{thread_number}_{request['id']}")
             thread_logger.info(f"[Thread-{thread_number}] Request Processing Started .. {time.ctime()}")
-            thread_logger.info(f"[Thread-{thread_number}] Checking It Was Responder or Not")
             thread_logger.info("Making record with 'I' - Inprogress state after picking..")
-            updatePostTransactionStatus(logger=thread_logger,table_name=table_name,request=request,status='I')
+            updatePostTransactionStatus(logger=thread_logger, table_name=table_name, request=request, status='I')
+            thread_logger.info(f"[Thread-{thread_number}] Checking It Was Responder or Not")
             if isResponderOrNot(request,thread_logger):
                 thread_logger.info(f"Found this record {request}in Responder Table. Updating status to 'R'...")
-                updatePostTransactionStatus(thread_logger,table_name,request,'R')
+                updatePostTransactionStatus(logger=thread_logger, table_name=table_name, request=request, status='R')
                 self.request_queue.task_done()
                 return
-            '''if not isDeliveredOrNOt(request,thread_logger):
+            if not isDeliveredOrNOt(request,thread_logger):
                 thread_logger.info(f"Unable to find this record {request} in Delivered Table. Updating status to 'U'...")
                 updatePostTransactionStatus(thread_logger, table_name, request, 'U')
                 self.request_queue.task_done()
-                return'''
+                return
             if isFeedlevelSuppressedOrNot(request,thread_logger):
                 thread_logger.info(f"Found this record {request} in Feed Level Suppression Tables. Updating status to 'Z'...")
                 updatePostTransactionStatus(thread_logger, table_name, request, 'Z')
@@ -100,7 +86,7 @@ class Postprocessing:
                 self.request_queue.task_done()
                 return
             request['targetListId'] = updateTargetListId(thread_logger, table_name, request, target_id)
-            if hitTheAPI(thread_logger,request):
+            if hitTheAPI(thread_logger,request,table_name):
                 thread_logger.info(f"Found API hit for record {request} is Success. Updating status to 'C'...")
                 updatePostTransactionStatus(thread_logger, table_name, request, 'C')
                 self.request_queue.task_done()
@@ -108,11 +94,13 @@ class Postprocessing:
         except Exception as e:
             print(f"Exception occurred while processing the thread... {request} :: Error reason:: {str(e) + str(traceback.format_exc())}")
             thread_logger.error(f"Exception occurred while processing the thread... {request} :: Error reason:: {str(e) + str(traceback.format_exc())}")
-            updatePostTransactionStatus(logger=thread_logger,table_name=table_name,request= request, status ='W')
+            updatePostTransactionStatus(logger=thread_logger,table_name=table_name,request= request, status='E',ed=str(e))
+        finally:
+            self.request_queue.task_done()
 
 
 
 if __name__ == '__main__':
     obj = Postprocessing()
-    obj.initiate_table_threads()
+    obj.post_process()
 

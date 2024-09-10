@@ -15,21 +15,17 @@ def getWaitingRecords(table_name, logger):
     except Exception as e:
         logger.error(f"Unable to Get Waiting requests for the table .. {table_name}")
         logger.error(f"Please look into this..{str(e) + traceback.format_exc()}")
-        raise Exception(f"Unable to Get Waiting requests for the table .. {table_name}")
+        raise Exception(f"Unable to Get Waiting requests for the table .. {table_name} ED :: {str(e)}")
 
 
 def isResponderOrNot(request, thread_logger):
     try:
         thread_logger.info(f"Method invoked To check record is responder or not in last 24 hrs...")
         with MySQLSessionManager(thread_logger, MDB_MYSQL_CONFIGS) as mdb_session:
-            channel = request['channel']
-            if channel == 'GREEN':
-                open_table = GREEN_OPEN_TABLE
-            elif channel == 'INFS' or channel == 'ORANGE':
-                open_table = INFS_OPEN_TABLE
-            else:
-                thread_logger.info(f"Unable to find this record any channel.Please look into this record ::: {request}")
-                return False
+            thread_logger.info(f"Fetching Responder Table info from Source table ")
+            thread_logger.info(f"Executing query ::: {FETCH_RESPONDER_INFO_QUERY.format(sourceId=request['sourceId'])}")
+            responder_table = mdb_session.execute(text(FETCH_RESPONDER_INFO_QUERY.format(sourceId=request['sourceId'])))
+            open_table = responder_table.fetchone()[0]
             thread_logger.info(f"Executing query ::: {CHECK_FOR_RESPONDER_QUERY.format(table_name=open_table, subid=request['subid'],profileid= request['profileId'])}")
             result = mdb_session.execute(text(CHECK_FOR_RESPONDER_QUERY.format(table_name=open_table, subid=request['subid'],profileid= request['profileId'])))
             result = result.fetchone()[0]
@@ -38,7 +34,7 @@ def isResponderOrNot(request, thread_logger):
             return False
     except Exception as e:
         thread_logger.info(f"Exception occurred while checking for responder or not::: Please look into this... {request} ::: Error reason :::{str(e) + traceback.format_exc()}")
-        return False
+        raise Exception("Exception occurred while checking for responder or not. ED :: {str(e)}")
 
 
 def isDeliveredOrNOt(request, thread_logger):
@@ -53,7 +49,7 @@ def isDeliveredOrNOt(request, thread_logger):
             return False
     except Exception as e:
         thread_logger.info(f"Exception occurred while checking for Delivered or not::: Please look into this... {request} ::: Error reason :::{str(e) + traceback.format_exc()}")
-        return False
+        raise Exception(f"Exception occurred while checking for Delivered or not.  ED :: {str(e)}")
 
 
 def isFeedlevelSuppressedOrNot(request, thread_logger):
@@ -92,7 +88,7 @@ def checkInGreenFeedSupp(request, logger):
     except Exception as e:
         logger.info(f"Exception occurred while checking on Feed level Suppression. Could you please look into this record {request}")
         logger.error(f"Exception details are ::: {str(e) + traceback.format_exc()}")
-        return False
+        raise Exception("Exception occurred while checking on Feed level Suppression ED :: {str(e)}")
 
 
 def checkInInfsFeedSupp(request, logger):
@@ -159,14 +155,14 @@ def checkInInfsFeedSupp(request, logger):
     except Exception as e:
         logger.info(f"Exception occurred while checking on Feed level Suppression. Could you please look into this record {request}")
         logger.error(f"Exception details are ::: {str(e) + traceback.format_exc()}")
-        return False
+        raise  Exception("Exception occurred while checking on Feed level Suppression. ED :: {str(e)}")
 
 
-def updatePostTransactionStatus(logger, table_name, request, status):
+def updatePostTransactionStatus(logger, table_name, request, status, ed=''):
     try:
         with MySQLSessionManager(logger, MDB_MYSQL_CONFIGS) as mdb_session:
-            logger.info(f" Executing query ::: {UPDATE_POST_PROCESSING_TABLE_STATUS_QUERY.format(table_name=table_name, subid=request['subid'],profileid=request['profileId'], status=status)}")
-            mdb_session.execute(text(UPDATE_POST_PROCESSING_TABLE_STATUS_QUERY.format(table_name=table_name, subid=request['subid'],profileid=request['profileId'], status=status)))
+            logger.info(f" Executing query ::: {UPDATE_POST_PROCESSING_TABLE_STATUS_QUERY.format(table_name=table_name, id=request['id'], status=status,errorReason=ed)}")
+            mdb_session.execute(text(UPDATE_POST_PROCESSING_TABLE_STATUS_QUERY.format(table_name=table_name, id=request['id'], status=status, errorReason =ed )))
             logger.info(f"{table_name} status updated to '{status}' for the record {request}")
     except Exception as e:
         logger.error(f"Exception Occurred while updating status for table {table_name} with status {status} for record  {request}")
@@ -177,11 +173,11 @@ def updateTargetListId(logger, table_name, request, target_id):
         with MySQLSessionManager(logger, MDB_MYSQL_CONFIGS) as mdb_session:
             channel = request['channel']
             if channel == 'GREEN':
-                record_listid = request['listid']
-                listid_column = "listid"
+                record_listid = request['listId']
+                listid_column = "listId"
             elif channel == "ORANGE" or channel == "INFS":
-                record_listid = request['plistid']
-                listid_column = "plistid"
+                record_listid = request['plistId']
+                listid_column = "plistId"
             logger.info("Fetching target_listid info from the Target Table...")
             logger.info(f"Executing query ::: {GET_TARGET_LISTID_INFO_QUERY.format(listidcolumn = listid_column ,targetid = target_id , channel = request['channel'])}")
             result = mdb_session.execute(text(GET_TARGET_LISTID_INFO_QUERY.format(listidcolumn = listid_column ,targetid = target_id , channel = request['channel'])))
@@ -212,20 +208,9 @@ def get_quota_usage_for_targets(source_id ,logger):
 def update_quota_check_table(target_id, quota_type,logger):
     logger.info("Method update_quota_check_table is invoked...  ")
     with MySQLSessionManager(logger, MDB_MYSQL_CONFIGS) as mdb_session:
-        if quota_type == 'H':
-            query = f'''
-            INSERT INTO {QUOTA_CHECK_TABLE} (targetId, count, hour, deployedDate)
-            VALUES (%s, 1, HOUR(NOW()), CURDATE())
-            ON DUPLICATE KEY UPDATE count = count + 1;
-            '''
-        else:
-            query = f'''
-            INSERT INTO {QUOTA_CHECK_TABLE} (targetId, count, deployedDate)
-            VALUES (%s, 1, CURDATE())
-            ON DUPLICATE KEY UPDATE count = count + 1;
-            '''
-        logger.info(f"Executing query ::: {query, (target_id,)}")
-        mdb_session.execute(query, (target_id,))
+        query = "INSERT INTO {QUOTA_CHECK_TABLE} (targetId, count, hour, deployedDate) VALUES ({targetID}, 1, HOUR(NOW()), CURDATE()) ON DUPLICATE KEY UPDATE count = count + 1 "
+        logger.info(f"Executing query ::: {query.format(QUOTA_CHECK_TABLE= QUOTA_CHECK_TABLE,targetID=target_id)}")
+        mdb_session.execute(query.format(QUOTA_CHECK_TABLE=QUOTA_CHECK_TABLE , targetID=target_id))
     logger.info(f"Successfully updated {QUOTA_CHECK_TABLE} table ")
 
 
@@ -256,40 +241,44 @@ def quota_check(request, logger):
         return selected_target['targetId']
 
 
-def hitTheAPI(logger,request):
+def hitTheAPI(logger, request,table_name):
     try:
-        channel =request['channel']
-        if channel == 'GREEN':
-            record_listid = request['listid']
-            listid_column = "listid"
-        elif channel == "ORANGE" or channel == "INFS":
-            record_listid = request['plistid']
-            listid_column = "plistid"
         with MySQLSessionManager(logger, MDB_MYSQL_CONFIGS) as mdb_session:
             logger.info("Fetching Transactional table info from the Source Table...")
-            logger.info(f"Executing query ::: {GET_TRANSACTIONAL_TABLE_INFO_QUERY.format(listidcolumn = listid_column ,listid = record_listid , channel = request['channel'])}")
-            result = mdb_session.execute(text(GET_TRANSACTIONAL_TABLE_INFO_QUERY.format(listidcolumn = listid_column ,listid = record_listid , channel = request['channel'])))
+            logger.info(f"Executing query ::: {GET_TRANSACTIONAL_TABLE_INFO_QUERY.format(sourceId=request['sourceId'])}")
+            result = mdb_session.execute(text(GET_TRANSACTIONAL_TABLE_INFO_QUERY.format(sourceId=request['sourceId'])))
             transactionalTable = result.fetchone()[0]
+            logger.info(f"Fetching API url from target table... ")
+            logger.info(f"Executing query ::: {FETCH_TARGET_API_URL_QUERY.format(targetId=request['targetId'])} ")
+            result = mdb_session.execute(text(FETCH_TARGET_API_URL_QUERY.format(targetId=request['targetId'])))
+            result = result.fetchone()
+            if result is None:
+                raise Exception(f"Unable to find API url and mapping columns from {TARGET_DETAILS_TABLE}.")
+            api_url_dict = dict(zip(result.keys(), result))
             logger.info(f"Now need to fetch the api params from Transactional table {transactionalTable}")
-            logger.info(f"Executing query ::: {FETCH_DATA_FROM_TRANSACTIONAL_QUERY.format(table_name=transactionalTable,transactionalId= request['transactionalId'])}")
-            result = mdb_session.execute(text(FETCH_DATA_FROM_TRANSACTIONAL_QUERY.format(table_name=transactionalTable,transactionalId= request['transactionalId'])))
-            api_params_as_dict = dict(zip(result.keys(), result.fetchone()))
-        logger.info(f"Fetched API params from Transactional table. ::: {api_params_as_dict}")
-        api_params_as_dict['listid'] = record_listid
-        logger.info(f"Updated params with new listid :: {api_params_as_dict} -- channel specific {channel} .Updates only for ORANGE channel")
-        logger.info(f"Fetching API url from target table... ")
-        API ="http://capps.zt03.net/custapps/pfm/rt/Pushnami/postdata.php?email={email}&fname={fname}&lname={lname}&zipcode={zipcode}&city={city}&address={address}&state={state}&url={url}&listid={listid}&ipaddress={ipaddress}&signupdate={signupdate}&vertical={vertical}&dob={dob}&subid={subid}"
-        formatted_url = API.format(**api_params_as_dict)
-        response = requests.get(formatted_url)
-
-        if response.status_code == 200:
-            logger.info("API call successful!")
-            logger.info(response.json())
-            return True
-        else:
-            logger.info(f"API call failed with status code {response.status_code}")
-            return False
+            logger.info(f"Executing query ::: {FETCH_DATA_FROM_TRANSACTIONAL_QUERY.format(columns = api_url_dict['urlParamFieldMapping'],table_name=transactionalTable,transactionalId= request['transactionalId'])}")
+            result = mdb_session.execute(text(FETCH_DATA_FROM_TRANSACTIONAL_QUERY.format(columns = api_url_dict['urlParamFieldMapping'],table_name=transactionalTable,transactionalId= request['transactionalId'])))
+            result = result.fetchone()
+            if result is None:
+                raise Exception(f"Unable to find this record in {transactionalTable}.")
+            api_params_as_dict = dict(zip(result.keys(), result))
+            logger.info(f"Fetched API params from Transactional table. ::: {api_params_as_dict}")
+            API = api_url_dict['apiURL']
+            formatted_url = API.format(**api_params_as_dict)
+            logger.info(f"Here is formatted url ::: {formatted_url}")
+            response = requests.get(formatted_url)
+            apiResponse = f"Code:: {response.status_code} - Response:: {response.text}".replace('"',"").replace("'",'')
+            logger.info(f"Executing query :: {UPDATE_POST_PROCESSING_TABLE_API_QUERY.format(table_name=table_name,apiCall=formatted_url,apiResponse=apiResponse,id=request['id'])}")
+            mdb_session.execute(UPDATE_POST_PROCESSING_TABLE_API_QUERY.format(table_name=table_name,apiCall=formatted_url,apiResponse=apiResponse,id=request['id']))
+            if response.status_code == 200:
+                logger.info("API call successful!")
+                logger.info(apiResponse)
+                return True
+            else:
+                logger.info(f"API call failed with status code {response.status_code}")
+                return False
     except Exception as e:
         logger.error("Exception occurred at step Hitting the API...")
         logger.error(f"Please look into this.... {str(e) + traceback.format_exc()}")
-        return False
+        raise Exception(f"Exception occurred at step Hitting the API.  ED :: {str(e)}")
+

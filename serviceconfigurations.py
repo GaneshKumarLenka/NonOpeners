@@ -41,7 +41,7 @@ LOG_PATH = "/gmservices/QA_Services/FEED_NON_OPENERS_SHARING/logs/"
 FILE_PATH = ""
 PID_FILE = ""
 
-THREAD_COUNT = 1  # thread count
+THREAD_COUNT = 3  # thread count
 
 # mail configs
 FROM_EMAIL = "noreply@alerts.zetaglobal.net"
@@ -78,20 +78,18 @@ JBDB4_MYSQL_CONFIGS = {
 }
 
 # TABLE NAME CONFIGS
-POST_PROCESSING_TABLES = [
-    "RT_NONOPENER_FEED_LEVEL_SHARING_TRANSACTIONAL_DATA",
-    "RT_NONOPENER_FEED_LEVEL_SHARING_TRANSACTIONAL_DATA_OTEAM"
-]
-GREEN_OPEN_TABLE = 'CUST_REPORT_DB.APT_OPEN_DETAILS'
-INFS_OPEN_TABLE = 'CUST_REPORT_DB.APT_OPEN_DETAILS_OTEAM'
+POST_PROCESSING_TABLE = "FEED_NONOPENER_SHARING_TRANSACTIONAL_DATA"
+
 DELIVERED_TABLE = 'PMTA_RAW_DELIVERED_LOG'
-QUOTA_CHECK_TABLE = 'RT_NONOPENER_SHARING_QUOTA_CHECK'
+QUOTA_CHECK_TABLE = 'FEED_NONOPENER_SHARING_QUOTA_CHECK'
 TARGET_DETAILS_TABLE = 'FEED_NONOPENER_SHARING_TARGET'
 # MYSQL QUERIES
-FETCH_WAITING_RECORDS_QUERY = "SELECT * FROM {table_name} WHERE  NO_STATUS = 'W' AND createdDate <= NOW()"
+
+FETCH_WAITING_RECORDS_QUERY = "SELECT * FROM {table_name} WHERE  STATUS = 'W' AND pickAt <= NOW() "
+FETCH_RESPONDER_INFO_QUERY = "SELECT responderTable FROM  FEED_NONOPENER_SHARING_SOURCE WHERE sourceId ={sourceId}"
 CHECK_FOR_RESPONDER_QUERY = "SELECT count(1) FROM  {table_name} WHERE SUBID = '{subid}' and PROFILEID = '{profileid}' and LASTOPENDATE >= NOW() - INTERVAL 1 DAY"
 CHECK_FOR_DELIVERED_QUERY = "SELECT count(1) FROM RT_CUSTOMIZATION_DB.PMTA_RAW_DELIVERED_LOG where SUBID ='{subid}' AND TOADDRESS = '{email}' and TIMELOGGED >=NOW() - INTERVAL 1 DAY"
-UPDATE_POST_PROCESSING_TABLE_STATUS_QUERY = "UPDATE {table_name} set NO_STATUS = '{status}' where SUBID = '{subid}' and profileId = {profileid}"
+UPDATE_POST_PROCESSING_TABLE_STATUS_QUERY = "UPDATE {table_name} set STATUS = '{status}',errorReason={errorReason} where id = {id}"
 CHECK_GREEN_FEED_SUPP_EMAIL_LEVEL_QUERY = "SELECT COUNT(1) FROM {table_name} where email = '{email}'"
 CHECK_GREEN_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY = "SELECT COUNT(1) FROM ({query}) G where email  ='{email}'  and G.listid = '{listid}'"
 
@@ -100,18 +98,12 @@ CHECK_INFS_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY = "SELECT COUNT(1) FROM ({query}) 
 
 GET_TARGET_LISTID_INFO_QUERY = "SELECT {listidcolumn} FROM FEED_NONOPENER_SHARING_TARGET WHERE targetId = {targetid}  and channelName = '{channel}' limit 1"
 
-GET_TRANSACTIONAL_TABLE_INFO_QUERY = "SELECT DISTINCT transactionalTable FROM FEED_NONOPENER_SHARING_SOURCE WHERE {listidcolumn} = '{listid}'  and channelName = '{channel}' limit 1"
-FETCH_DATA_FROM_TRANSACTIONAL_QUERY = "SELECT email,fname, lname, zipcode, city ,address, state , url, listid, ipaddress,signupdate,vertical, dob , subid  from {table_name}  where id = {transactionalId} "
-
-FETCH_TARGET_QUOTA_DETAILS = '''SELECT t.targetId, t.quota, t.quotaType, COALESCE(q.count, 0) AS currentCount
-        FROM FEED_NONOPENER_SHARING_TARGET t
-        LEFT JOIN RT_NONOPENER_SHARING_QUOTA_CHECK q
-            ON t.targetId = q.targetId
-            AND ((t.quotaType = 'H' AND q.hour = HOUR(NOW()) AND q.deployedDate = CURDATE())
-                 OR (t.quotaType = 'D' AND q.deployedDate = CURDATE()))
-        WHERE t.sourceId = {sourceid}'''
+GET_TRANSACTIONAL_TABLE_INFO_QUERY = "SELECT DISTINCT transactionalTable FROM FEED_NONOPENER_SHARING_SOURCE WHERE sourceId = {sourceId} limit 1"
+FETCH_DATA_FROM_TRANSACTIONAL_QUERY = "SELECT {columns}  from {table_name}  where id = {transactionalId} "
+FETCH_TARGET_API_URL_QUERY = "SELECT apiURL,urlParamFieldMapping from FEED_NONOPENER_SHARING_TARGET where targetId={targetId} limit 1"
+FETCH_TARGET_QUOTA_DETAILS = "SELECT t.targetId, t.quota, t.quotaType, COALESCE(q.count, 0) AS currentCount FROM FEED_NONOPENER_SHARING_TARGET t LEFT JOIN FEED_NONOPENER_SHARING_QUOTA_CHECK q ON t.targetId = q.targetId AND ((t.quotaType = 'H' AND q.hour = HOUR(NOW()) AND q.deployedDate = CURDATE()) OR (t.quotaType = 'D' AND q.deployedDate = CURDATE())) WHERE t.sourceId = {sourceid} and t.status ='A'"
 UPDATE_POST_PROCESSING_TABLE_TARGET_LISTID_QUERY = "UPDATE {table_name} set targetListId = {targetListId} where id = {id}"
-
+UPDATE_POST_PROCESSING_TABLE_API_QUERY = " UPDATE {table_name} set apiCall = '{apiCall}' and apiResponse ='{apiResponse}' where id ={id} "
 # Feed Level Suppressions configs
 GREEN_FEED_LEVEL_SUPP_TABLES = {
     'email': (
