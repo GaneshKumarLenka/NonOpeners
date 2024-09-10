@@ -1,34 +1,44 @@
 from serviceconfigurations import *
 
-@contextmanager
-def createMysqlConnectionSession(logger, configs):
-    retry_count = 0
-    session = None
-    try:
+class MySQLSessionManager:
+    def __init__(self, logger, configs):
+        self.logger = logger
+        self.configs = configs
+        self.session = None
+    def __enter__(self):
+        retry_count = 0
         while retry_count < MYSQL_CONNECTION_RETRY_LIMIT:
             try:
-                logger.info(f"Acquiring MySQL connection... Attempt {retry_count + 1}...")
-                database_url = URL.create(**configs)
-                engine = create_engine(database_url, connect_args={'autocommit': True, 'allow_local_infile': True})
+                self.logger.info(f"Acquiring MySQL connection... Attempt {retry_count + 1}...")
+                database_url = URL.create(
+                    drivername=self.configs.get('drivername'),
+                    username=self.configs.get('username'),
+                    password=self.configs.get('password'),
+                    host=self.configs.get('host'),
+                    port=self.configs.get('port'),
+                    database=self.configs.get('database')
+                )
+                engine = create_engine(database_url, connect_args={'autocommit': True})
                 Session = sessionmaker(bind=engine)
-                session = Session()
-                logger.info("MySQL connection established successfully.")
-                yield session
-                break
+                self.session = Session()
+                self.logger.info("MySQL connection established successfully.")
+                return self.session
             except Exception as e:
-                logger.error(f"Exception occurred while acquiring MySQL connection (Attempt {retry_count + 1}).. {str(e)}")
+                self.logger.error(f"Exception occurred while acquiring MySQL connection (Attempt {retry_count + 1}).. {str(e)}")
                 retry_count += 1
-                if retry_count == MYSQL_CONNECTION_RETRY_LIMIT:
+                if retry_count >= MYSQL_CONNECTION_RETRY_LIMIT:
                     raise Exception("Unable to establish MySQL connection after multiple retries.")
-    except Exception as e:
-        logger.error(f"Critical error during MySQL connection setup: {str(e)}")
-        if session:
-            session.rollback()  # Rollback in case of critical error
-        raise
-    finally:
-        if session:
-            session.close()  # Ensure session is closed after usage
-            logger.info("MySQL session closed.")
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type:
+            self.logger.error(f"Error during MySQL session usage: {exc_value}")
+            if self.session:
+                self.session.rollback()
+        if self.session:
+            try:
+                self.session.close()
+                self.logger.info("MySQL session closed.")
+            except Exception as e:
+                self.logger.error(f"Error occurred while closing session: {str(e)}")
 
 def send_skype_alert(msg, channel=skype_configurations['default_channel']):
     try:
@@ -49,36 +59,31 @@ def send_skype_alert(msg, channel=skype_configurations['default_channel']):
         print(str(e))
 
 
-def create_logger(base_logger_name: object, log_file_path: object = LOG_PATH, log_to_stdout: object = False) -> object:
+def create_logger(base_logger_name: str, log_file_path: str = LOG_PATH, log_to_stdout: bool = False) -> logging.Logger:
     # Append current date to the base logger name
     today_date = time.strftime("%Y%m%d")
     logger_name = f"{base_logger_name}_{today_date}"
-
     # Define a custom logging format
-    log_format = '%(asctime)s - %(levelname)s - Thread:%(thread)d - %(name)s - Line:%(lineno)d - %(message)s'
-
+    log_format = '%(asctime)s [%(levelname)s] [T:%(thread)d] [%(name)s:%(lineno)d] - %(message)s'
     # Create a formatter with the custom format
     formatter = logging.Formatter(log_format)
-
     # Create a logger and set the formatter
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.DEBUG)
-
-    # Create a file handler, set the formatter, and add it to the logger
-    file_handler = logging.FileHandler(str(log_file_path) + '/' + str(logger_name) + ".log")
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-
-    # Check if log_to_stdout flag is True
-
-    if log_to_stdout:
-        # Create a StreamHandler to log to stdout
-        stream_handler = logging.StreamHandler(sys.stdout)
-        stream_handler.setFormatter(formatter)
-        logger.addHandler(stream_handler)
+    # Check if the logger already has handlers to avoid adding duplicates
+    if not logger.hasHandlers():
+        # Create a file handler, set the formatter, and add it to the logger
+        file_handler = logging.FileHandler(f"{log_file_path}/{logger_name}.log")
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        # Check if log_to_stdout flag is True
+        if log_to_stdout:
+            # Create a StreamHandler to log to stdout
+            stream_handler = logging.StreamHandler(sys.stdout)
+            stream_handler.setFormatter(formatter)
+            logger.addHandler(stream_handler)
     logger.propagate = False
     return logger
-
 
 def exit_program(code=-1, pid_file=PID_FILE):
     if os.path.exists(pid_file):
@@ -135,3 +140,4 @@ def send_mail(type_of_request, request_id, run_number, subject, message_body, se
             print("Email sent successfully.")
     except Exception as e:
         print(f"Error sending email: {e}")
+
