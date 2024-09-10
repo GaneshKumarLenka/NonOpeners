@@ -41,7 +41,7 @@ LOG_PATH = "/gmservices/QA_Services/FEED_NON_OPENERS_SHARING/logs/"
 FILE_PATH = ""
 PID_FILE = ""
 
-THREAD_COUNT = 2  # thread count
+THREAD_COUNT = 1  # thread count
 
 # mail configs
 FROM_EMAIL = "noreply@alerts.zetaglobal.net"
