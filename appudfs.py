@@ -70,20 +70,32 @@ def checkInGreenFeedSupp(request, logger):
     try:
         with MySQLSessionManager(logger, MDB_MYSQL_CONFIGS) as mdb_session:
             logger.info(f"Checking in Green Feed Level Suppression's... ")
-            for table in GREEN_FEED_LEVEL_SUPP_TABLES['email']:
-                logger.info(f"Checking the record in Suppressed or not in table {table}")
-                logger.info(f"Executing query ::: {CHECK_GREEN_FEED_SUPP_EMAIL_LEVEL_QUERY.format(table_name=table, email=request['emailId'])}")
-                result = mdb_session.execute(text(CHECK_GREEN_FEED_SUPP_EMAIL_LEVEL_QUERY.format(table_name=table, email=request['emailId'])))
+            logger.info(f" Check for Rule 1 Suppression :: ")
+            logger.info(f"Executing query :: {GREEN_CHECK_RULE1_QUERY.format(listid = request['listid'])}")
+            result = mdb_session.execute(text(GREEN_CHECK_RULE1_QUERY.format(listid = request['listid'])))
+            result = result.fetchone()[0]
+            if result >= 1:
+                logger.info("This is Rule 1 feed , checking rule 1 suppressed or not ...")
+                logger.info(f"Executing Query ::: {GREEN_CHECK_RULE1_SUPPRESSION_QUERY.format(email= request['email'])}")
+                result = mdb_session.execute(text(GREEN_CHECK_RULE1_SUPPRESSION_QUERY.format(email=request['email'])))
                 result = result.fetchone()[0]
-                if result >= 1:
+                if result == "C":
                     return True
-            for table in GREEN_FEED_LEVEL_SUPP_TABLES['email_listid']:
-                logger.info(f"Checking the record in Suppressed or not in table {table}")
-                logger.info(f"Executing query ::: {CHECK_GREEN_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY.format(query=table, email=request['emailId'],listid =request['listId'])}")
-                result = mdb_session.execute(text(CHECK_GREEN_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY.format(query=table, email=request['emailId'],listid =request['listId'])))
-                result = result.fetchone()[0]
-                if result >= 1:
-                    return True
+            else:
+                for table in GREEN_FEED_LEVEL_SUPP_TABLES['email']:
+                    logger.info(f"Checking the record in Suppressed or not in table {table}")
+                    logger.info(f"Executing query ::: {CHECK_GREEN_FEED_SUPP_EMAIL_LEVEL_QUERY.format(table_name=table, email=request['emailId'])}")
+                    result = mdb_session.execute(text(CHECK_GREEN_FEED_SUPP_EMAIL_LEVEL_QUERY.format(table_name=table, email=request['emailId'])))
+                    result = result.fetchone()[0]
+                    if result >= 1:
+                        return True
+                for table in GREEN_FEED_LEVEL_SUPP_TABLES['email_listid']:
+                    logger.info(f"Checking the record in Suppressed or not in table {table}")
+                    logger.info(f"Executing query ::: {CHECK_GREEN_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY.format(query=table, email=request['emailId'],listid =request['listId'])}")
+                    result = mdb_session.execute(text(CHECK_GREEN_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY.format(query=table, email=request['emailId'],listid =request['listId'])))
+                    result = result.fetchone()[0]
+                    if result >= 1:
+                        return True
             return False
     except Exception as e:
         logger.info(f"Exception occurred while checking on Feed level Suppression. Could you please look into this record {request}")
@@ -116,26 +128,26 @@ def checkInInfsFeedSupp(request, logger):
             if result >= 1:
                 return True
 
-            logger.info("Executing query ::: SELECT COUNT(1) FROM (select c.email,d.account_name from CUST_REPORT_DB.APT_UNSUB_DETAILS_OTEAM c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid) G where G.account_name={account_name} and G.EMAIL = {email}".format(email=request['emailId'], account_name=request['accountname']))
-            result = mdb_session.execute(text("SELECT COUNT(1) FROM (select c.email,d.account_name from CUST_REPORT_DB.APT_UNSUB_DETAILS_OTEAM c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid) G where G.account_name={account_name} and G.EMAIL = {email}".format(email=request['emailId'], account_name=request['accountname'])))
+            logger.info("Executing query ::: select count(1) from  CUST_REPORT_DB.APT_UNSUB_DETAILS_OTEAM a where a.email = '{email}' and a.listid in ( select listid from INFS_DB.INFS_ORANGE_MAPPING_TABLE where account_name in (select account_name from INFS_DB.INFS_ORANGE_MAPPING_TABLE  where listid = {listid}) )".format(email=request['emailId'], listid=request['listId']))
+            result = mdb_session.execute(text("select count(1) from  CUST_REPORT_DB.APT_UNSUB_DETAILS_OTEAM a where a.email = '{email}' and a.listid in ( select listid from INFS_DB.INFS_ORANGE_MAPPING_TABLE where account_name in (select account_name from INFS_DB.INFS_ORANGE_MAPPING_TABLE  where listid = {listid}) )".format(email=request['emailId'], listid=request['listId'])))
             result = result.fetchone()[0]
             if result >= 1:
                 return True
 
-            logger.info("Executing query ::: select count(1) from  (select c.email,d.account_name from (select email,listid from  CUST_REPORT_DB.APT_EMAIL_REPLIES_TRANSACTIONAL a join INFS_DB.INFS_ADHOC_DOMAINS b on lower(trim(a.domain))=lower(trim(b.domain)) where a.id > 17218326 ) c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid ) G where G.account_name={account_name} and G.EMAIL = {email}".format(email=request['emailId'], account_name=request['accountname']))
-            result = mdb_session.execute(text("select count(1) from  (select c.email,d.account_name from (select email,listid from  CUST_REPORT_DB.APT_EMAIL_REPLIES_TRANSACTIONAL a join INFS_DB.INFS_ADHOC_DOMAINS b on lower(trim(a.domain))=lower(trim(b.domain)) where a.id > 17218326 ) c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid ) G where G.account_name={account_name} and G.EMAIL = {email}".format(email=request['emailId'], account_name=request['accountname'])))
+            logger.info("Executing query ::: select count(1) from (select email,listid from  CUST_REPORT_DB.APT_EMAIL_REPLIES_TRANSACTIONAL a join INFS_DB.INFS_ADHOC_DOMAINS b on lower(trim(a.domain))=lower(trim(b.domain)) ) G where G.LISTID in ( select listid from INFS_DB.INFS_ORANGE_MAPPING_TABLE where account_name in (select account_name from INFS_DB.INFS_ORANGE_MAPPING_TABLE  where listid = {listid}) ) and G.EMAIL = {email}".format(email=request['emailId'],listid=request['listId']))
+            result = mdb_session.execute(text("select count(1) from (select email,listid from  CUST_REPORT_DB.APT_EMAIL_REPLIES_TRANSACTIONAL a join INFS_DB.INFS_ADHOC_DOMAINS b on lower(trim(a.domain))=lower(trim(b.domain)) ) G where G.LISTID in ( select listid from INFS_DB.INFS_ORANGE_MAPPING_TABLE where account_name in (select account_name from INFS_DB.INFS_ORANGE_MAPPING_TABLE  where listid = {listid}) ) and G.EMAIL = {email}".format(email=request['emailId'], listid=request['listId'])))
             result = result.fetchone()[0]
             if result >= 1:
                 return True
 
-            logger.info("Executing query ::: SELECT COUNT(1) FROM (select c.email,d.account_name from INFS_DB.INFS_UNSUBS_ACCOUNT_WISE c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.account_name=d.account_name ) G where G.account_name= {account_name} and G.EMAIL= {email}".format(email=request['emailId'], account_name=request['accountname']))
-            result = mdb_session.execute(text("SELECT COUNT(1) FROM (select c.email,d.account_name from INFS_DB.INFS_UNSUBS_ACCOUNT_WISE c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.account_name=d.account_name ) G where G.account_name= {account_name} and G.EMAIL= {email}".format(email=request['emailId'], account_name=request['accountname'])))
+            logger.info("Executing query ::: SELECT COUNT(1) FROM INFS_DB.INFS_UNSUBS_ACCOUNT_WISE a where a.email = '{email}' and a.listid in ( select listid from INFS_DB.INFS_ORANGE_MAPPING_TABLE where account_name in ( select account_name from INFS_DB.INFS_ORANGE_MAPPING_TABLE  where list_id = {listid}))".format(email=request['emailId'], listid=request['listId']))
+            result = mdb_session.execute(text("SELECT COUNT(1) FROM INFS_DB.INFS_UNSUBS_ACCOUNT_WISE a where a.email = '{email}' and a.listid in ( select listid from INFS_DB.INFS_ORANGE_MAPPING_TABLE where account_name in ( select account_name from INFS_DB.INFS_ORANGE_MAPPING_TABLE  where list_id = {listid}))".format(email=request['emailId'],listid=request['listId'])))
             result = result.fetchone()[0]
             if result >= 1:
                 return True
 
-            logger.info("Executing query ::: SELECT COUNT(1) FROM (select c.email,d.account_name from INFS_DB.APT_INFS_ACCOUNT_LEVEL_STATIC_SUPPRESSION_DATA c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid) G where G.account_name= {account_name} and G.EMAIL ={email}".format(email=request['emailId'], account_name=request['accountname']))
-            result = mdb_session.execute(text("SELECT COUNT(1) FROM (select c.email,d.account_name from INFS_DB.APT_INFS_ACCOUNT_LEVEL_STATIC_SUPPRESSION_DATA c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid) G where G.account_name= {account_name} and G.EMAIL ={email}".format(email=request['emailId'], account_name=request['accountname'])))
+            logger.info("Executing query ::: SELECT COUNT(1) FROM INFS_DB.APT_INFS_ACCOUNT_LEVEL_STATIC_SUPPRESSION_DATA G where G.listid in (select listid from INFS_DB.INFS_ORANGE_MAPPING_TABLE where account_name in ( select account_name from INFS_DB.INFS_ORANGE_MAPPING_TABLE  where list_id = {listid})) and G.EMAIL ={email}".format(email=request['emailId'], listid=request['listId']))
+            result = mdb_session.execute(text("SELECT COUNT(1) FROM INFS_DB.APT_INFS_ACCOUNT_LEVEL_STATIC_SUPPRESSION_DATA G where G.listid in (select listid from INFS_DB.INFS_ORANGE_MAPPING_TABLE where account_name in ( select account_name from INFS_DB.INFS_ORANGE_MAPPING_TABLE  where list_id = {listid})) and G.EMAIL ={email}".format(email=request['emailId'], listid=request['listId'])))
             result = result.fetchone()[0]
             if result >= 1:
                 return True
@@ -146,8 +158,8 @@ def checkInInfsFeedSupp(request, logger):
             if result >= 1:
                 return True
 
-            logger.info("Executing query ::: SELECT COUNT(1) FROM INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION G where G.email= {email} and {account_name} in (select account_name from INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION_LISTIDS c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid)".format(email=request['emailId'], account_name=request['accountname']))
-            result = mdb_session.execute(text("SELECT COUNT(1) FROM INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION G where G.email= {email} and {account_name} in (select account_name from INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION_LISTIDS c join INFS_DB.INFS_ORANGE_MAPPING_TABLE d on c.listid=d.listid)".format(email=request['emailId'], account_name=request['accountname'])))
+            logger.info("Executing query ::: SELECT COUNT(1) FROM INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION G where G.email= {email} and {listid} in (select listid from INFS_DB.INFS_ORANGE_MAPPING_TABLE where account_name in (select account_name INFS_DB.INFS_ORANGE_MAPPING_TABLE where listid in (select from list_id from INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION_LISTIDS)))".format(email=request['emailId'],listid=request['listId']))
+            result = mdb_session.execute(text("SELECT COUNT(1) FROM INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION G where G.email= {email} and {listid} in (select listid from INFS_DB.INFS_ORANGE_MAPPING_TABLE where account_name in (select account_name INFS_DB.INFS_ORANGE_MAPPING_TABLE where listid in (select from list_id from INFS_DB.BLUE_CLIENT_DATA_SUPPRESSION_LISTIDS)))".format(email=request['emailId'], listid=request['listId'])))
             result = result.fetchone()[0]
             if result >= 1:
                 return True
@@ -167,6 +179,7 @@ def updatePostTransactionStatus(logger, table_name, request, status, ed=''):
     except Exception as e:
         logger.error(f"Exception Occurred while updating status for table {table_name} with status {status} for record  {request}")
         logger.error(f"Please look into this error ::: {str(e) + traceback.format_exc()}")
+        raise Exception(f"Exception Occurred while updating status for table {table_name} with status {status} for record  {request}")
 
 def updateTargetListId(logger, table_name, request, target_id):
     try:
@@ -184,8 +197,9 @@ def updateTargetListId(logger, table_name, request, target_id):
             target_listid = result.fetchone()[0]
             logger.info(f"Fetched target_listid : {target_listid} for {listid_column} : {record_listid} ")
             request['targetListId'] = target_listid
-            logger.info(f" Executing query ::: {UPDATE_POST_PROCESSING_TABLE_TARGET_LISTID_QUERY.format(table_name=table_name, targetListId=request['targetListId'], id=request['id'])}")
-            mdb_session.execute(text(UPDATE_POST_PROCESSING_TABLE_TARGET_LISTID_QUERY.format(table_name=table_name, targetListId=request['targetListId'], id=request['id'])))
+            request['targetId'] = target_id
+            logger.info(f" Executing query ::: {UPDATE_POST_PROCESSING_TABLE_TARGET_LISTID_QUERY.format(table_name=table_name, targetId=target_id,  targetListId=request['targetListId'], id=request['id'])}")
+            mdb_session.execute(text(UPDATE_POST_PROCESSING_TABLE_TARGET_LISTID_QUERY.format(table_name=table_name, targetId=target_id, targetListId=request['targetListId'], id=request['id'])))
             logger.info(f"{table_name} targetListId updated to '{request['targetListId']}' for the record {request}")
             return target_listid
     except Exception as e:

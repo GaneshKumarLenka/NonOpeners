@@ -1,4 +1,4 @@
-# import statements
+#import statements
 import os
 import random
 import sys
@@ -89,7 +89,7 @@ FETCH_WAITING_RECORDS_QUERY = "SELECT * FROM {table_name} WHERE  STATUS = 'W' AN
 FETCH_RESPONDER_INFO_QUERY = "SELECT responderTable FROM  FEED_NONOPENER_SHARING_SOURCE WHERE sourceId ={sourceId}"
 CHECK_FOR_RESPONDER_QUERY = "SELECT count(1) FROM  {table_name} WHERE SUBID = '{subid}' and PROFILEID = '{profileid}' and LASTOPENDATE >= NOW() - INTERVAL 1 DAY"
 CHECK_FOR_DELIVERED_QUERY = "SELECT count(1) FROM RT_CUSTOMIZATION_DB.PMTA_RAW_DELIVERED_LOG where SUBID ='{subid}' AND TOADDRESS = '{email}' and TIMELOGGED >=NOW() - INTERVAL 1 DAY"
-UPDATE_POST_PROCESSING_TABLE_STATUS_QUERY = "UPDATE {table_name} set STATUS = '{status}',errorReason={errorReason} where id = {id}"
+UPDATE_POST_PROCESSING_TABLE_STATUS_QUERY = "UPDATE {table_name} set STATUS = '{status}',errorReason='{errorReason}' where id = {id}"
 CHECK_GREEN_FEED_SUPP_EMAIL_LEVEL_QUERY = "SELECT COUNT(1) FROM {table_name} where email = '{email}'"
 CHECK_GREEN_FEED_SUPP_EMAIL_LISTID_LEVEL_QUERY = "SELECT COUNT(1) FROM ({query}) G where email  ='{email}'  and G.listid = '{listid}'"
 
@@ -102,8 +102,12 @@ GET_TRANSACTIONAL_TABLE_INFO_QUERY = "SELECT DISTINCT transactionalTable FROM FE
 FETCH_DATA_FROM_TRANSACTIONAL_QUERY = "SELECT {columns}  from {table_name}  where id = {transactionalId} "
 FETCH_TARGET_API_URL_QUERY = "SELECT apiURL,urlParamFieldMapping from FEED_NONOPENER_SHARING_TARGET where targetId={targetId} limit 1"
 FETCH_TARGET_QUOTA_DETAILS = "SELECT t.targetId, t.quota, t.quotaType, COALESCE(q.count, 0) AS currentCount FROM FEED_NONOPENER_SHARING_TARGET t LEFT JOIN FEED_NONOPENER_SHARING_QUOTA_CHECK q ON t.targetId = q.targetId AND ((t.quotaType = 'H' AND q.hour = HOUR(NOW()) AND q.deployedDate = CURDATE()) OR (t.quotaType = 'D' AND q.deployedDate = CURDATE())) WHERE t.sourceId = {sourceid} and t.status ='A'"
-UPDATE_POST_PROCESSING_TABLE_TARGET_LISTID_QUERY = "UPDATE {table_name} set targetListId = {targetListId} where id = {id}"
+UPDATE_POST_PROCESSING_TABLE_TARGET_LISTID_QUERY = "UPDATE {table_name} set targetListId = {targetListId}, targetId = {targetId} where id = {id}"
 UPDATE_POST_PROCESSING_TABLE_API_QUERY = " UPDATE {table_name} set apiCall = '{apiCall}' and apiResponse ='{apiResponse}' where id ={id} "
+
+
+GREEN_CHECK_RULE1_QUERY = "SELECT COUNT(1) FROM PFM_UNIVERSAL_DB.PFM_FLUENT_REGISTRATIONS_LOOKUP_DONOTDROP_RT WHERE RULE in (2,3) AND listid = '{listid}'"
+GREEN_CHECK_RULE1_SUPPRESSION_QUERY = "select checkUnsubStatusRT('{email}')"
 # Feed Level Suppressions configs
 GREEN_FEED_LEVEL_SUPP_TABLES = {
     'email': (
@@ -130,9 +134,10 @@ INFS_FEED_LEVEL_SUPP_TABLES = {
     'email_listid': (
         "select email, listid from CUST_REPORT_DB.APT_UNSUB_DETAILS_OTEAM",
         "select email,listid from CUST_REPORT_DB.APT_EMAIL_REPLIES_TRANSACTIONAL a join INFS_DB.INFS_ADHOC_DOMAINS b on lower(trim(a.domain))=lower(trim(b.domain)) where a.id > 17218326",
-        "select email,listid from INFS_DB.INFS_UNSUBS_ACCOUNT_WISE a join (select distinct listid, acc_name as account_name from INFS_DB.INFS_ADHOC_DOMAINS) b on a.account_name=b.account_name",
+        "select a.email,a.listid from INFS_DB.INFS_UNSUBS_ACCOUNT_WISE a join (select distinct listid, acc_name as account_name from INFS_DB.INFS_ADHOC_DOMAINS) b on a.account_name=b.account_name",
         "select email, listid from INFS_DB.APT_INFS_ACCOUNT_LEVEL_STATIC_SUPPRESSION_DATA",
     )
 }
+
 
 
